@@ -1,0 +1,2 @@
+# patzer
+Crappy chess engine

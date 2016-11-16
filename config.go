@@ -1,19 +1,19 @@
 package patzer
 
 import (
-    "flag"
+	"flag"
 )
 
 type Config struct {
-    Debug int
+	Debug int
 }
 
 var Cfg Config
 
 func init() {
-    flag.IntVar(&Cfg.Debug, "debug", 0, "enable debug level: 0-9")
+	flag.IntVar(&Cfg.Debug, "debug", 0, "enable debug level: 0-9")
 }
 
 func (c *Config) Parse() {
-    flag.Parse()
+	flag.Parse()
 }

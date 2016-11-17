@@ -2,7 +2,7 @@
 
 sq = 16
 
-sqs = range(sq*sq)
+sqs = range(sq*8)
 
 grid = ""
 row  = ""

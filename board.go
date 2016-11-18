@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"errors"
 )
 
 const (
@@ -334,14 +335,71 @@ func (b *Board) GenMoves() []*Board {
 	return blist
 }
 
+
+func (b *Board) IsValidMove(from int8, to int8) bool {
+	mover := b.Squares[from]
+	if mover == EmptyPiece {
+		return false
+	}
+
+	dest := b.Squares[to]
+	if dest != EmptyPiece && dest.Color == mover.Color {
+		return false
+	}
+	
+	return true
+}
+
+func iabs8(x int8) int8 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 func (b *Board) Move(from int8, to int8) (*Board, error) {
 	nb := *b
 
-	piece1 := nb.Squares[from]
-	piece2 := nb.Squares[to]
-
-	fmt.Println("piece1:", piece1, PieceSymbol[piece1.Color][piece1.Type])
-	fmt.Println("piece2:", piece2, PieceSymbol[piece2.Color][piece2.Type])
+	if nb.IsValidMove(from, to) {
+		piece1 := nb.Squares[from]
+		piece2 := nb.Squares[to]
+		if piece1.Color == BLACK {
+			nb.MoveCount++
+		}
+		if piece1.Type == PAWN || piece2 != EmptyPiece {
+			nb.FiftyMove++
+		} else {
+			nb.FiftyMove = 0
+		}
+		if piece1.Type == PAWN && iabs8(to - from) == RANK*2 {
+			nb.EnPassant = from + ((to - from) / 2)
+		}
+		if piece1.Type == KING {
+			nb.KCastle[piece1.Color] = false
+			nb.QCastle[piece1.Color] = false
+		}
+		if piece1.Type == ROOK {
+			if piece1.Color == WHITE {
+			if from == A1 {
+				nb.QCastle[WHITE] = false
+			} else if from == H1 {
+				nb.KCastle[WHITE] = false
+			}
+			} else {
+			if from == A1 {
+				nb.QCastle[BLACK] = false
+			} else if from == H1 {
+				nb.KCastle[BLACK] = false
+			}
+			}
+		}
+		//nb.Pieces[piece2.Color][piece2.Type]
+		//nb.Pieces[piece1.Color][piece1.Type]
+		nb.Squares[from] = EmptyPiece
+		nb.Squares[to] = piece1
+	} else {
+		return b, errors.New(fmt.Sprintf("invalid move - %s => %s", AlgebraicTable[from], AlgebraicTable[to]))
+	}
 
 	return &nb, nil
 }

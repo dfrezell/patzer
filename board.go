@@ -1,15 +1,15 @@
 package patzer
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
-	"errors"
 )
 
 const (
 	NONE = 0
-	NOSQ = MAX_SQUARES-1
+	NOSQ = MAX_SQUARES - 1
 )
 
 const (
@@ -108,6 +108,10 @@ func appendIf(moves [][]int8, vector []int8) [][]int8 {
 
 func (p *Piece) Equal(other *Piece) bool {
 	return p.Color == other.Color && p.Type == other.Type
+}
+
+func (p *Piece) Str() string {
+	return PieceSymbol[p.Color][p.Type]
 }
 
 func (p *Piece) whitePawnMove(pos int8) [][]int8 {
@@ -269,7 +273,7 @@ func (b *Board) FEN() *string {
 				fen += strconv.Itoa(empty)
 				empty = 0
 			}
-			fen += PieceSymbol[p.Color][p.Type]
+			fen += p.Str()
 		}
 		if empty != 0 {
 			fen += strconv.Itoa(empty)
@@ -322,31 +326,98 @@ func (b *Board) FEN() *string {
 	return &fen
 }
 
+func (b *Board) ASCII() *string {
+	border := "+---+---+---+---+---+---+---+---+\n"
+	row := "| %1s | %1s | %1s | %1s | %1s | %1s | %1s | %1s | %d\n"
+	col := "  a   b   c   d   e   f   g   h\n"
+
+	board := ""
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A8].Str(), b.Squares[B8].Str(), b.Squares[C8].Str(), b.Squares[D8].Str(),
+		b.Squares[E8].Str(), b.Squares[F8].Str(), b.Squares[G8].Str(), b.Squares[H8].Str(), 8)
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A7].Str(), b.Squares[B7].Str(), b.Squares[C7].Str(), b.Squares[D7].Str(),
+		b.Squares[E7].Str(), b.Squares[F7].Str(), b.Squares[G7].Str(), b.Squares[H7].Str(), 7)
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A6].Str(), b.Squares[B6].Str(), b.Squares[C6].Str(), b.Squares[D6].Str(),
+		b.Squares[E6].Str(), b.Squares[F6].Str(), b.Squares[G6].Str(), b.Squares[H6].Str(), 6)
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A5].Str(), b.Squares[B5].Str(), b.Squares[C5].Str(), b.Squares[D5].Str(),
+		b.Squares[E5].Str(), b.Squares[F5].Str(), b.Squares[G5].Str(), b.Squares[H5].Str(), 5)
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A4].Str(), b.Squares[B4].Str(), b.Squares[C4].Str(), b.Squares[D4].Str(),
+		b.Squares[E4].Str(), b.Squares[F4].Str(), b.Squares[G4].Str(), b.Squares[H4].Str(), 4)
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A3].Str(), b.Squares[B3].Str(), b.Squares[C3].Str(), b.Squares[D3].Str(),
+		b.Squares[E3].Str(), b.Squares[F3].Str(), b.Squares[G3].Str(), b.Squares[H3].Str(), 3)
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A2].Str(), b.Squares[B2].Str(), b.Squares[C2].Str(), b.Squares[D2].Str(),
+		b.Squares[E2].Str(), b.Squares[F2].Str(), b.Squares[G2].Str(), b.Squares[H2].Str(), 2)
+	board += border
+	board += fmt.Sprintf(row, b.Squares[A1].Str(), b.Squares[B1].Str(), b.Squares[C1].Str(), b.Squares[D1].Str(),
+		b.Squares[E1].Str(), b.Squares[F1].Str(), b.Squares[G1].Str(), b.Squares[H1].Str(), 1)
+	board += border
+	board += col
+
+	return &board
+}
+
 func (b *Board) GenMoves() []*Board {
 	blist := []*Board{}
 
 	for pos, piece := range b.Squares {
 		if piece != EmptyPiece && piece.Color == b.ToMove {
 			moveList := piece.Move(int8(pos))
-			fmt.Printf("%s : %2d => %v : %d\n", PieceSymbol[piece.Color][piece.Type], pos, moveList, len(moveList))
+			fmt.Printf("%s : %2d => %v : %d\n", piece.Str(), pos, moveList, len(moveList))
 		}
 	}
 
 	return blist
 }
 
-
 func (b *Board) IsValidMove(from int8, to int8) bool {
+	// are we trying to move an empty square?
 	mover := b.Squares[from]
 	if mover == EmptyPiece {
 		return false
 	}
 
+	// are we trying to capture our own piece?
 	dest := b.Squares[to]
 	if dest != EmptyPiece && dest.Color == mover.Color {
 		return false
 	}
-	
+
+	possibleDestSq := mover.Move(from)
+	validRay := []int8{}
+	// check if our to square is in the list of possible squares
+	for _, ray := range possibleDestSq {
+		for _, sq := range ray {
+			if to == sq {
+				validRay = ray
+			}
+		}
+	}
+
+	// did we find the proper move vector?
+	if len(validRay) == 0 {
+		return false
+	}
+
+	// Are there any blocking pieces in our path?
+	if mover.Type != KNIGHT {
+		for _, sq := range validRay {
+			if sq != to {
+				// does a square in our path have a piece?
+				if b.Squares[sq] != EmptyPiece {
+					return false
+				}
+			} else {
+				break
+			}
+		}
+	}
+
 	return true
 }
 
@@ -367,12 +438,15 @@ func (b *Board) Move(from int8, to int8) (*Board, error) {
 			nb.MoveCount++
 		}
 		if piece1.Type == PAWN || piece2 != EmptyPiece {
-			nb.FiftyMove++
-		} else {
+			// reset 50 move rule on pawn move or capture
 			nb.FiftyMove = 0
+		} else {
+			nb.FiftyMove++
 		}
-		if piece1.Type == PAWN && iabs8(to - from) == RANK*2 {
+		if piece1.Type == PAWN && iabs8(to-from) == RANK*2 {
 			nb.EnPassant = from + ((to - from) / 2)
+		} else {
+			nb.EnPassant = NOSQ
 		}
 		if piece1.Type == KING {
 			nb.KCastle[piece1.Color] = false
@@ -380,17 +454,17 @@ func (b *Board) Move(from int8, to int8) (*Board, error) {
 		}
 		if piece1.Type == ROOK {
 			if piece1.Color == WHITE {
-			if from == A1 {
-				nb.QCastle[WHITE] = false
-			} else if from == H1 {
-				nb.KCastle[WHITE] = false
-			}
+				if from == A1 {
+					nb.QCastle[WHITE] = false
+				} else if from == H1 {
+					nb.KCastle[WHITE] = false
+				}
 			} else {
-			if from == A1 {
-				nb.QCastle[BLACK] = false
-			} else if from == H1 {
-				nb.KCastle[BLACK] = false
-			}
+				if from == A1 {
+					nb.QCastle[BLACK] = false
+				} else if from == H1 {
+					nb.KCastle[BLACK] = false
+				}
 			}
 		}
 		//nb.Pieces[piece2.Color][piece2.Type]
